@@ -1,3 +1,4 @@
+import logging
 import random
 
 import BAC0
@@ -21,12 +22,15 @@ from BAC0.core.devices.local.models import (
     humidity_value,
     character_string,
 )
-from BAC0.core.devices.local.object import ObjectFactory
+# from BAC0.core.devices.local.object import ObjectFactory
 
 # bacnet = BAC0.lite(ip="192.168.1.40/24")
-device_app = BAC0.lite(ip="192.168.1.40/24", port=47808, deviceId=101)
+# BAC0.log_level("debug")
+# BAC0.log_level(log_file=logging.DEBUG, stdout=logging.DEBUG, stderr=logging.CRITICAL)
+# bacnet = BAC0.lite(ip="192.168.1.101/24", port=47810)
+device = BAC0.lite(ip="10.0.0.9/24", port=47809, deviceId=101)
 
-time.sleep(1)
+
 _new_objects = analog_input(
         instance=0,
         name="RT",
@@ -34,42 +38,55 @@ _new_objects = analog_input(
         description="Room Temperature",
         presentValue=17,
     )
-_new_objects = analog_value(
+_new_objects = analog_output(
         instance=0,
-        name="VT",
+        name="WT",
         properties={"units": "degreesCelsius"},
         description="Wanted Temperature",
         presentValue=22,
     )
-_new_objects = binary_input(
+_new_objects = binary_output(
         instance=0,
-        name="BI",
+        name="BO",
         description="Device ON/OFF",
         presentValue=True,
     )
 
 
-_new_objects.add_objects_to_application(device_app)
+_new_objects.add_objects_to_application(device)
+
+
+# bacnet = BAC0.lite(ip="192.168.1.101/24", port=47810)
+# mycontroller = BAC0.device("192.168.1.101/24:47809", 101, bacnet)
+# mycontroller["WT"] = 50
+# mycontroller["WT"].out_of_service()
+# mycontroller["WT"] = "auto" (releasuje override priority 8) zapsané pomocí controler příkazu výše na defaultní hodnotu
+#   mycontroller["WT"].default(number)
+# mycontroller["WT"].write(34, priority=13)
+# mycontroller["WT"].write("null", priority=13)
+
+
+# bacnet.write('192.168.1.101/24:47809 analogOutput 0 presentValue 50 - 14')
+# priorities = bacnet.read('192.168.1.101/24:47809 analogOutput 0 priorityArray')
 
 i = 0
-previousTemperature = actualTemperature = device_app["RT"].presentValue
+previousTemperature = actualTemperature = device["RT"].presentValue
 counter = 0
 randCounter = random.randint(45, 90)
-
+prop = ('analogOutput', 0, 'priorityArray')
 
 while True:
-    actualTemperature = device_app["RT"].presentValue
-    wantedTemperature = device_app["VT"].presentValue
-    devState = device_app["BI"].presentValue
+    actualTemperature = device["RT"].presentValue
+    wantedTemperature = device["WT"].presentValue
+    devState = device["BO"].presentValue
 
-    print(actualTemperature)
-    print(devState)
+    print("Actual: ", actualTemperature)
+    print("Wanted: ", wantedTemperature)
 
     if devState != "inactive":
         temp = previousTemperature + 0.05 * (wantedTemperature - actualTemperature)
     else:
         temp = actualTemperature - 0.2
-
 
     if counter < randCounter:
         counter += 1
@@ -86,11 +103,12 @@ while True:
         rand = 0
 
     if randCounter > 70:
-        rand = -rand
+        rand = - rand
 
-
-    device_app["RT"].presentValue = temp - rand
-
+    device["RT"].presentValue = temp - rand
+    # device.points
+    # device["WT"].write_property(, value=25, priority=14)
+    # print(device.read(prop))
 
     previousTemperature = temp
     time.sleep(1)
